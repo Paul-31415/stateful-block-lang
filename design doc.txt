@@ -1,0 +1,21 @@
+
+
+what I want it to do:
+
+block based interaction with code
+compile/tangle to javascript?
+  compile to javascript : make a js source code string and run it  (easier to serialize and webwork, but can't do macros easily)
+  tangle to javascript  : make a collection of js objects that runs the code with a method  (don't need to worry about hooking up to screen)
+  rust wasm             : write interpereter in rust and compile that to wasm
+
+ * imports are hard with webworkers
+
+multithreading
+
+typed? : writing type systems suck.
+
+
+
+
+
+

@@ -1,0 +1,59 @@
+load("@npm//@bazel/concatjs:index.bzl", "concatjs_devserver")
+load("@npm//@bazel/typescript:index.bzl", "ts_library")
+load("@npm//@bazel/esbuild:index.bzl", "esbuild")
+
+ts_library(
+    name = "index_lib",
+    srcs = glob(["*.ts","*.tsx"]),
+    module_name = "whiskers/src/index_lib",
+    deps = [
+        "@npm//blockly",
+        "@npm//react",
+        "@npm//@types/react",
+        "@npm//react-dom",
+        "@npm//@types/react-dom",
+        "@npm//@material-ui/core",
+        "@npm//@material-ui/styles",
+        "@npm//@material-ui/icons",
+
+        "@npm//react-blockly",
+    ]
+)
+
+esbuild(
+    name = "index_bundle",
+    entry_point = "index.tsx",
+    target = "es2015",
+    sources_content = True,
+    minify = False,
+    args = [
+        "--keep-names", # For convenience. Can be removed.
+        "--resolve-extensions=.mjs,.js",
+    ],
+    define = [
+        "process.env.NODE_ENV=\"browser\""
+    ],
+    tool = select({
+        "@bazel_tools//src/conditions:darwin": "@esbuild_darwin//:bin/esbuild",
+        "@bazel_tools//src/conditions:windows": "@esbuild_windows//:esbuild.exe",
+        "@bazel_tools//src/conditions:linux_x86_64": "@esbuild_linux//:bin/esbuild",
+    }),
+    deps = [
+        ":index_lib",
+    ],
+)
+
+# Using esbuild instead of concatjs since it solves a lot of the
+# import issues.
+concatjs_devserver(
+    name = "index_devserver",
+    entry_module = "whiskers/src/index_bundle",
+    #entry_module = "whiskers/src/index_lib",
+    deps = [
+        ":index_bundle",
+    ],
+    static_files = [
+        ":index_bundle",
+    ]
+)
+
