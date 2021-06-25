@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import App from './app';
+import 'blockly';
 
 const div = document.createElement('div');
 document.body.appendChild(div);

@@ -1,6 +1,7 @@
-load("@npm//@bazel/concatjs:index.bzl", "concatjs_devserver")
 load("@npm//@bazel/typescript:index.bzl", "ts_library")
 load("@npm//@bazel/esbuild:index.bzl", "esbuild")
+
+package(default_visibility = ["//visibility:public"])
 
 ts_library(
     name = "index_lib",
@@ -15,8 +16,6 @@ ts_library(
         "@npm//@material-ui/core",
         "@npm//@material-ui/styles",
         "@npm//@material-ui/icons",
-
-        "@npm//react-blockly",
     ]
 )
 
@@ -42,18 +41,3 @@ esbuild(
         ":index_lib",
     ],
 )
-
-# Using esbuild instead of concatjs since it solves a lot of the
-# import issues.
-concatjs_devserver(
-    name = "index_devserver",
-    entry_module = "whiskers/src/index_bundle",
-    #entry_module = "whiskers/src/index_lib",
-    deps = [
-        ":index_bundle",
-    ],
-    static_files = [
-        ":index_bundle",
-    ]
-)
-
