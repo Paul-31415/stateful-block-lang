@@ -3,8 +3,8 @@ import { makeStyles } from '@material-ui/styles';
 import * as React from 'react';
 import { useState } from 'react';
 import MenuBar from './menu_bar';
-import { BlocklyWorkspace } from "react-blockly";
-import Blockly from "blockly";
+import 'blockly/blocks';
+import { Block, BlocklyComponent, Field, Shadow, Value } from './blockly_component';
 
 const useStyles = makeStyles({
     root: {
@@ -15,68 +15,6 @@ const useStyles = makeStyles({
 function App() {
     const classes = useStyles();
     const [x, setX] = useState(0);
-
-    const [xml, setXml] = useState("");
-    const [javascriptCode, setJavascriptCode] = useState("");
-
-    const initialXml =
-        '<xml xmlns="http://www.w3.org/1999/xhtml"><block type="text" x="70" y="30"><field name="TEXT"></field></block></xml>';
-    const toolboxCategories = {
-        kind: "categoryToolbox",
-        contents: [
-            {
-                kind: "category",
-                name: "Logic",
-                colour: "#5C81A6",
-                contents: [
-                    {
-                        kind: "block",
-                        type: "controls_if",
-                    },
-                    {
-                        kind: "block",
-                        type: "logic_compare",
-                    },
-                ],
-            },
-            {
-                kind: "category",
-                name: "Math",
-                colour: "#5CA65C",
-                contents: [
-                    {
-                        kind: "block",
-                        type: "math_round",
-                    },
-                    {
-                        kind: "block",
-                        type: "math_number",
-                    },
-                ],
-            },
-            {
-                kind: "category",
-                name: "Custom",
-                colour: "#5CA699",
-                contents: [
-                    {
-                        kind: "block",
-                        type: "new_boundary_function",
-                    },
-                    {
-                        kind: "block",
-                        type: "return",
-                    },
-                ],
-            },
-        ],
-    };
-    function workspaceDidChange(workspace) {
-        const code = (Blockly as any).JavaScript.workspaceToCode(workspace);
-        setJavascriptCode(code);
-    }
-
-
 
     return (
         <div className="App">
@@ -106,31 +44,42 @@ function App() {
             <div>
                 barubo goondstromg
             </div>
-            <BlocklyWorkspace
-                toolboxConfiguration={toolboxCategories}
-                initialXml={initialXml}
-                className="fill-height"
-                workspaceConfiguration={{
-                    grid: {
-                        spacing: 20,
-                        length: 3,
-                        colour: "#ccc",
-                        snap: true,
-                    },
+            <BlocklyComponent
+                readOnly={false} trashcan={true} media={'media/'}
+                move={{
+                    scrollbars: true,
+                    drag: true,
+                    wheel: true
                 }}
-                onWorkspaceChange={workspaceDidChange}
-                onXmlChange={setXml}
-            />
-            <pre id="generated-xml">{xml}</pre>
-            <textarea
-                id="code"
-                style={{ height: "200px", width: "400px" }}
-                value={javascriptCode}
-                readOnly
-            >helo</textarea>
-
-
-        </div>
+                initialXml={`
+<xml xmlns="http://www.w3.org/1999/xhtml">
+<block type="controls_ifelse" x="0" y="0"></block>
+</xml>
+            `}>
+                <Block type="controls_ifelse" />
+                <Block type="logic_compare" />
+                <Block type="logic_operation" />
+                <Block type="controls_repeat_ext">
+                    <Value name="TIMES">
+                        <Shadow type="math_number">
+                            <Field name="NUM">10</Field>
+                        </Shadow>
+                    </Value>
+                </Block>
+                <Block type="logic_operation" />
+                <Block type="logic_negate" />
+                <Block type="logic_boolean" />
+                <Block type="logic_null" disabled="true" />
+                <Block type="logic_ternary" />
+                <Block type="text_charAt">
+                    <Value name="VALUE">
+                        <Block type="variables_get">
+                            <Field name="VAR">text</Field>
+                        </Block>
+                    </Value>
+                </Block>
+            </BlocklyComponent>
+        </div >
     );
 }
 

@@ -1,22 +1,22 @@
 {
-	"compilerOptions": {
-		"target": "es2017",
-		"module": "commonjs",
-		"lib": ["dom", "dom.iterable", "esnext", "scripthost"],
-		"declaration": true,
-		"sourceMap": true,
-		"allowJs": true,
-		"jsx": "react",
-		"strict": true,
-		"noImplicitAny": false,
-		"strictNullChecks": true,
-		"strictFunctionTypes": true,
-		"noImplicitThis": false,
-		"alwaysStrict": true,
-		"downlevelIteration": true,
-		"noUnusedParameters": false,
-		"noImplicitReturns": false,
-		"noFallthroughCasesInSwitch": false,
-		"esModuleInterop": true,
-	}
+  "compilerOptions": {
+	"target": "es2017",
+	"module": "commonjs",
+	"lib": ["dom", "dom.iterable", "esnext", "scripthost"],
+	"declaration": true,
+	"sourceMap": true,
+	"allowJs": true,
+	"jsx": "react",
+	"strict": true,
+	"noImplicitAny": true,
+	"strictNullChecks": true,
+	"strictFunctionTypes": true,
+	"noImplicitThis": true,
+	"alwaysStrict": true,
+	"downlevelIteration": true,
+	"noUnusedParameters": true,
+	"noImplicitReturns": true,
+	"noFallthroughCasesInSwitch": true,
+	"esModuleInterop": true
+  }
 }
