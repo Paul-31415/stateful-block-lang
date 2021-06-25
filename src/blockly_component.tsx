@@ -1,8 +1,5 @@
 import { makeStyles } from '@material-ui/styles';
-//import Blockly from 'blockly/core';
 import * as Blockly from 'blockly';
-import 'blockly/core';
-import 'blockly/blocks';
 import * as React from 'react';
 import { useRef, useState, useEffect } from 'react';
 
