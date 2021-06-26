@@ -5,6 +5,7 @@ import { useState } from 'react';
 import MenuBar from './menu_bar';
 import 'blockly/blocks';
 import { Block, BlocklyComponent, Field, Shadow, Value } from './blockly_component';
+import './custom_blocks';
 
 const useStyles = makeStyles({
     root: {
@@ -78,6 +79,7 @@ function App() {
                         </Block>
                     </Value>
                 </Block>
+                <Block type="custom_block_1" />
             </BlocklyComponent>
         </div >
     );
