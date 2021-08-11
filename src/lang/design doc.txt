@@ -1,0 +1,85 @@
+
+Method: Object tangle
+  why?: it's only around 1.5 orders of magnitude slower
+        and with it I can pass code around more easily.
+		Specifically, I can do macros in it, whereas in
+		compile-to-JS that'd be nontrivial.
+
+  ideas:
+      • all values (except primitives) are code objects
+	    If it's something data (eg vec3), it self evals
+      • Lisp-like architecture but borrowing from smalltalk
+	    and allowing for sequential coding style
+	  • Stateful - a program is a state, this allows for easy
+	    setting of init-values and, for games, level design
+	  • currying
+      • easy data-init for objects (for (de)serializing)
+	  • human readable serialization format
+	  • powerfull things like map and reduce for parralelization for eventual compilation
+
+      regarding block metadata about args and shape and stuff,
+	    have a block description structure that has that info
+		and is perhaps also used to define the serialization/
+		deserialization syntax.
+
+  standard gamelib should have:
+      • vec2 and vec3
+	  • sprites
+	  • drawing tools
+	     vector
+		  line
+		  bezier
+		  b-spline
+		  nurbs
+		 raster
+		  glsl shaders (maybe shader blocks that compile to glsl)
+		 tristimulus perceptual model for hyperspectral
+	  • simple physics tools
+ 	     eg: x += dt*v+dt*dt*a/2
+	  • simple geomath tools
+	     points
+	     lines
+		 parabolas
+	  • simple math tools
+	     complex numbers
+		 algebraic number types
+		 quaternions
+		 matrices
+	     quadratic formula with special case handling
+		 polynomials
+	  • audio pipeline
+	     access to webaudio nodes
+	  • procedural animation/texturing
+	     1d cellular automata
+		 langtons ants
+		 behaviour transition graphs for entities
+		 
+		 
+  
+
+
+
+
+
+_________________________
+ok now for the specifics:
+¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+blocks:
+  have render fully seperate to make able to run in node and whatnot
+
+
+signature:
+  tells you how to use this block, informs the editor/renderer how to show this block
+  list of args
+   args:
+     string - label string
+	 {name?,key,type?} - argument
+	    name's default is key,
+		type's default is any
+	 types:
+	   "code" or "{}"      - like scratch's code "C" bracket (can right-click to change this display to inline)
+	   "value" or "()"     - like scratch's exp circle ()
+	   "[]"                - scratch's exp square (used for strings in scratch)
+	   "boolean" or "<>"   - like scratch's predicate boolean hexagon thingy
+	   "button"            - doesn't take an argument, makes a button you can press (calls key)
+	   

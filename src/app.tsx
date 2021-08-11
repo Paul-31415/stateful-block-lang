@@ -2,8 +2,8 @@ import { Button, Slider } from '@material-ui/core';
 import { makeStyles } from '@material-ui/styles';
 import * as React from 'react';
 import * as Blockly from 'blockly';
-import * as B from "./base";
-import * as B2 from "./base2";
+import * as B from "./lang/base";
+import * as B2 from "./lang/base2";
 import { useState } from 'react';
 import MenuBar from './menu_bar';
 import 'blockly/blocks';
@@ -13,14 +13,23 @@ import './custom_blocks';
 import "./example";
 import { codeGen } from "./codeGen";
 
+import * as PIXI from "pixi.js";
+
 const useStyles = makeStyles({
     root: {
         flexGrow: 1,
     },
 });
 
+const pixelRatio = window.devicePixelRatio || 1;
+const app = new PIXI.Application({
+    width: window.innerWidth * pixelRatio,
+    height: window.innerHeight * pixelRatio,
+    autoDensity: true
+});
 
-
+(window as any).app = app;
+document.body.appendChild(app.view);
 
 
 function App() {

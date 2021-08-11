@@ -3,7 +3,9 @@ import * as Blockly from 'blockly';
 import * as React from 'react';
 import { useRef, useState, useEffect } from 'react';
 
+
 type BlocklyComponentProps = {
+    bref?: any,
     initialXml?: string,
     children?: React.ReactNode,
 } & Blockly.BlocklyOptions;
@@ -26,13 +28,12 @@ declare global {
     }
 }
 
-export function BlocklyComponent({ initialXml, children, ...blocklyOptions }: BlocklyComponentProps) {
+export function BlocklyComponent({ bref, initialXml, children, ...blocklyOptions }: BlocklyComponentProps) {
     const classes = useStyles();
     const blocklyDiv = useRef<HTMLDivElement>(null);
     const toolbox = useRef();
     const [primaryWorkspace, setPrimaryWorkspace]
         = useState<Blockly.Workspace | undefined>();
-
     useEffect(() => {
         if (blocklyDiv.current) {
             setPrimaryWorkspace(
@@ -41,7 +42,7 @@ export function BlocklyComponent({ initialXml, children, ...blocklyOptions }: Bl
                     ...blocklyOptions,
                 })
             );
-        }
+        };
     }, [blocklyDiv]);
 
     useEffect(() => {
@@ -50,6 +51,12 @@ export function BlocklyComponent({ initialXml, children, ...blocklyOptions }: Bl
                 primaryWorkspace);
         }
     }, [initialXml, primaryWorkspace]);
+
+    useEffect(() => {
+        if (bref) {
+            bref(primaryWorkspace);
+        };
+    }, [bref, primaryWorkspace]);
 
     return (
         <>

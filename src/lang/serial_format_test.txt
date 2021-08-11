@@ -1,0 +1,126 @@
+
+
+
+
+
+//mergesort
+
+// input in addressable-by-position container "a"
+
+
+def func ascending_order(array a, optional array b) as
+	if len(a) > 1
+
+
+
+func asc_order(array a, index left_first, left_last, right_first, right_last)
+	if left_last > left_first
+
+
+
+def in_seq(a)
+	if len(a) == 1
+		return a
+	al, ar = split(a)
+	return asc_order(al, ar)
+		
+
+
+
+
+
+def asc_order(left, right)
+	if len(left) > 1
+		ll, lr = split(left)
+		left = asc_order(ll, lr)
+	if len(right) > 1
+		rl, rr = split(right)
+		right = asc_order(rl, rr)
+
+	lv = next left
+	rv = next right
+	while lv and rv both nonempty
+		if lv < rv
+			yield lv
+			lv = next left
+		else
+			yield rv
+			rv = next right
+	if lv empty
+		if rv nonempty
+			yield rv
+	else if rv empty
+		if lv nonempty
+			yield lv
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// mergesort
+mergesort <l> <comp = {>}> {
+  if (length l <= 1) {
+    return l
+  }
+  a = mergesort (sublist l 0 ((length l) / 2)) comp
+  b = mergesort (sublist l ((length l) / 2)) comp
+
+  return (list {
+    while ((length a) and (length b)) {
+	  yield (if (comp (car a) (car b)) {pop a} {pop b})
+	}
+	yield_from a
+	yield_from b
+  })
+}
+
+
+
+
+
+
+
+
+
+

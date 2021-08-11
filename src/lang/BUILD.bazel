@@ -4,25 +4,17 @@ load("@npm//@bazel/esbuild:index.bzl", "esbuild")
 package(default_visibility = ["//visibility:public"])
 
 ts_library(
-    name = "index_lib",
-    srcs = glob(["*.ts","*.tsx","lang/*.ts"]),
-    module_name = "whiskers/src/index_lib",
+    name = "lang_lib",
+    srcs = glob(["*.ts","*.tsx"]),
+    module_name = "whiskers/src/lang",
     deps = [
-        "@npm//blockly",
-        "@npm//react",
-        "@npm//@types/react",
-        "@npm//react-dom",
-        "@npm//@types/react-dom",
-        "@npm//@material-ui/core",
-        "@npm//@material-ui/styles",
-        "@npm//@material-ui/icons",
-        "//src/lang:lang_lib",
     ]
 )
 
+"""
 esbuild(
-    name = "index_bundle",
-    entry_point = "index.tsx",
+    name = "lang",
+    entry_point = "base.ts",
     target = "es2015",
     sources_content = True,
     minify = False,
@@ -39,6 +31,7 @@ esbuild(
         "@bazel_tools//src/conditions:linux_x86_64": "@esbuild_linux//:bin/esbuild",
     }),
     deps = [
-        ":index_lib",
+        ":lang_lib"
     ],
 )
+"""

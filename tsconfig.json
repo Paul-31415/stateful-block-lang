@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-	"target": "es2017",
+	"target": "esnext",//"es2017",
 	"module": "commonjs",
 	"lib": ["dom", "dom.iterable", "esnext", "scripthost"],
 	"declaration": true,
@@ -17,6 +17,7 @@
 	"noUnusedParameters": true,
 	"noImplicitReturns": true,
 	"noFallthroughCasesInSwitch": true,
-	"esModuleInterop": true
-  }
+	"esModuleInterop": true,
+  },
+  "types": ["node"]
 }

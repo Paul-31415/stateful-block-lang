@@ -35,3 +35,28 @@ Blockly.Blocks['custom_block_1'] = {
         this.jsonInit(custom_block_1);
     }
 }
+Blockly.Blocks['lambda'] = {
+    init: function(this: Initable) {
+        this.jsonInit(
+            {
+                "type": "function",
+                "message0": "lambda %1 %2",
+                "args0": [
+                    {
+                        "type": "input_value",
+                        "name": "args",
+                        "check": "String"
+                    },
+                    {
+                        "type": "input_statement",
+                        "name": "defn"
+                    }
+                ],
+                "colour": 245,
+                "tooltip": "function",
+                "helpUrl": ""
+            }
+
+        );
+    }
+}

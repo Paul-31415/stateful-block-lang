@@ -1,8 +1,13 @@
 
-export type Signature = {
+export type Signature = Array<Argument>;//have the args section of this be a listy thing, have code.signature be a getter to do fancy stuff
+//allow for the creation of new arg types using blocks
+export type Argument = string | karg<any>;
+type karg<T> = {
+    name: string,
+    key: keyof T,
+    type: string,
+}
 
-
-};
 
 export type Value = Code | IterableIterator<Value> |
     number | string | boolean | bigint | symbol |
@@ -30,6 +35,10 @@ export interface Code {
     __rdiv__?: (o: Value) => Value;
     __rsub__?: (o: Value) => Value;
     __lt__?: (o: Value) => boolean;
+
+    __call__?: (a: Value[]) => Value;
+
+
 }
 export function isCode(n: any): n is Code {
     return (n as Code)._is_Code === true;
@@ -48,7 +57,7 @@ export function isTrue(n: Value): boolean {
 
 export class Scope<K, T> extends Map<K, T> implements Code {
     _is_Code: true = true;
-    signature = {};
+    signature = [];
     constructor(public prev?: Scope<K, T>) { super(); }
     run(_s: Scope<string, Value>) { return this; }
     get(k: K): T | undefined {
@@ -93,7 +102,10 @@ export class Scope<K, T> extends Map<K, T> implements Code {
 export class If implements Code {
     _is_Code: true = true;
     constructor(public condition: Value, public ifTrue: Value, public ifFalse: Value) { }
-    signature: Signature = {};
+    signature: Signature =
+        ['if', { name: 'condition', key: 'condition', type: 'boolean' },
+            { name: 'then', key: 'ifTrue', type: 'code' },
+            { name: 'else', key: 'ifFalse', type: 'code' }];
     run(s: Scope<string, Value>): Value {
         const cond = run(this.condition, s);
         if (isTrue(cond)) {
@@ -107,7 +119,8 @@ export class If implements Code {
 export class Progn implements Code {
     _is_Code: true = true;
     constructor(public body: Value[]) { }
-    signature = {};
+    signature =
+        ['progn', { name: 'code', key: 'body', type: 'code' }];
     run(s: Scope<string, Value>): Value {
         let res: Value = undefined;
         for (let i = 0; i < this.body.length; i++) {
@@ -120,7 +133,8 @@ export class Progn implements Code {
 export class While implements Code {
     _is_Code: true = true;
     constructor(public condition: Value, public body: Value) { }
-    signature = {};
+    signature = ["while", { name: "cond", key: 'condition', type: 'boolean' },
+        { name: "loop", key: 'body', type: 'code' }];
     run(s: Scope<string, Value>): Value {
         let res: Value = undefined;
         while (isTrue(run(this.condition, s))) {
@@ -133,7 +147,10 @@ export class While implements Code {
 export class Assign implements Code {
     _is_Code: true = true;
     constructor(public name: string, public exp: Value) { }
-    signature = {};
+    signature =
+        [{ name: "lval", key: 'name', type: 'string' },
+            "=",
+        { name: "rval", key: 'exp', type: 'value' }];
     run(s: Scope<string, Value>): Value {
         const v = run(this.exp, s);
         s.set(this.name, v);
@@ -144,7 +161,9 @@ export class Assign implements Code {
 export class Var implements Code {
     _is_Code: true = true;
     constructor(public name: string) { }
-    signature = {};
+    get signature() {
+        return [this.name];
+    }
     run(s: Scope<string, Value>): Value {
         return s.get(this.name) as Value;
     }
@@ -153,7 +172,7 @@ export class Var implements Code {
 export class Add implements Code {
     _is_Code: true = true;
     constructor(public args: Value[]) { }
-    signature = {};
+    signature = ['+', { name: "lval", key: 'args', type: 'value' }];
     run(s: Scope<string, Value>): Value {
         let res: Value = 0;
         for (let i = 0; i < this.args.length; i++) {
@@ -172,7 +191,7 @@ export class Add implements Code {
 export class Div implements Code {
     _is_Code: true = true;
     constructor(public args: Value[]) { }
-    signature = {};
+    signature = ['/', { name: "lval", key: 'args', type: 'value' }];;
     run(s: Scope<string, Value>): Value {
         let res = this.args.length > 0 ? run(this.args[0], s) : 1;
         for (let i = 1; i < this.args.length; i++) {
@@ -191,7 +210,7 @@ export class Div implements Code {
 export class LT implements Code {
     _is_Code: true = true;
     constructor(public a: Value, public b: Value) { }
-    signature = {};
+    signature = [{ name: "lval", key: 'a', type: 'value' }, '<', { name: "rval", key: 'b', type: 'value' }];;
     run(s: Scope<string, Value>): Value {
         const lhs = run(this.a, s);
         const rhs = run(this.b, s);
@@ -203,10 +222,45 @@ export class LT implements Code {
 export class Print implements Code {
     _is_Code: true = true;
     constructor(public v: Value) { }
-    signature = {};
+    signature = ['print', { name: "v", key: 'v', type: 'value' }];
     run(s: Scope<string, Value>): Value {
         const r = run(this.v, s);
         console.log(r);
         return r;
     }
 }
+export type Arg = string;
+export class Closure implements Code {
+    _is_Code: true = true;
+    constructor(public args: Arg[], public def: Code, public scope: Scope<string, Value>) { }
+    get signature() {
+        return this.args;
+    }
+    run(_s: Scope<string, Value>): Value {
+        return this;
+    }
+    __call__(a: Value[]) {
+        //todo
+        return a[0];
+
+    }
+}
+export class Lambda implements Code {
+    _is_Code: true = true;
+    constructor(public args: Arg[], public def: Code) { }
+    signature = ['lambda',];
+    run(s: Scope<string, Value>): Value {
+        return new Closure(this.args, this.def, new Scope(s));
+    }
+}
+export class Call implements Code {
+    _is_Code: true = true;
+    constructor(public func: Code, public args: Code[]) { }
+    signature = [];
+    run(s: Scope<string, Value>): Value {
+        const f = this.func.run(s);
+        const a = this.args.map((v) => v.run(s));
+        return isCode(f) ? (f.__call__ ? f.__call__(a) : f) : f;
+    }
+}
+
