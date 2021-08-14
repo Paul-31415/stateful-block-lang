@@ -10,6 +10,7 @@ type karg<T> = {
 
 
 export type Value = Code | IterableIterator<Value> |
+    Array<Value> |
     number | string | boolean | bigint | symbol |
     null | undefined;
 export function run(code: Value, scope: Scope<string, Value>): Value {

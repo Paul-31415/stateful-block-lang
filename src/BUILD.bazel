@@ -17,6 +17,11 @@ ts_library(
         "@npm//@material-ui/styles",
         "@npm//@material-ui/icons",
         "//src/lang:lang_lib",
+        
+        "@npm//@inlet/react-pixi",
+        "@npm//pixi.js",
+        "@npm//@geoffcox/react-splitter",
+        
     ]
 )
 
