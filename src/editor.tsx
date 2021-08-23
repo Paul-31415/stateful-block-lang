@@ -11,8 +11,8 @@ export function BlockInput(props: { block: B.Code, inp: any /*keyof block*/ }) {
     if (Array.isArray(v)) {
         return (
             <div> [
-                {...v.map((e) => {
-                    return (<Block block={e} />);
+                {...v.map((e, i) => {
+                    return (<Block key={i.toString()} block={e} />);
                 })}
                 ]
             </div>
@@ -62,19 +62,19 @@ export function Block(props: { block: B.Value }) {
         const sig = props.block.signature;
         return (
             <div>(
-                {...sig.map((e) => {
+                {...sig.map((e, i) => {
                     if (typeof e === "string") {
-                        return (<div> {e} </div>);
+                        return (<div key={i.toString()}> {e} </div>);
                     }
-                    return (<BlockInput block={props.block as any} inp={e.key as any} />);
+                    return (<BlockInput key={i.toString()} block={props.block as any} inp={e.key as any} />);
                 })})
             </div>
         );
     } else if (Array.isArray(props.block)) {
         return (
             <div> [
-                {...props.block.map((e) => {
-                    return (<Block block={e} />);
+                {...props.block.map((e, i) => {
+                    return (<Block key={i.toString()} block={e} />);
                 })}
                 ]
             </div>

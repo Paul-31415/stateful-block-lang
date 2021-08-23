@@ -10,6 +10,9 @@ Method: Object tangle
 	    If it's something data (eg vec3), it self evals
       • Lisp-like architecture but borrowing from smalltalk
 	    and allowing for sequential coding style
+		• code is s-expressions, immutable by default (asside from set! operations)
+		  (note that this is ok and easy on the editor because
+		   react wants it this way anyways)
 	  • Stateful - a program is a state, this allows for easy
 	    setting of init-values and, for games, level design
 	  • currying
