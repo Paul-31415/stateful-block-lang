@@ -1,9 +1,18 @@
 import * as React from 'react';
-import * as B from "./lang/base2";
+import * as Sig from "./lang/sig";
+import * as Core from "./lang/core";
 
 
 
-export function BlockInput(props: { block: B.Code, inp: any /*keyof block*/ }) {
+
+export function Value(props: { val: Core.Value }) {
+
+
+}
+
+
+/*
+export function BlockInput(props: { block: B.Code, inp: any /*keyof block* / }) {
     const v = (props.block as any)[props.inp] as any as B.Value;
     if (v && B.isCode(v)) {
         return <Block block={v} />;
@@ -117,3 +126,4 @@ export function Block(props: { block: B.Value }) {
 
     }
 }
+*/
