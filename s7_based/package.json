@@ -6,8 +6,12 @@
   "author": "Paul",
   "license": "MIT",
   "private": true,
+  "scripts": {
+    "serve": "static -p 8000"
+  },
   "devDependencies": {
-    "esbuild": "^0.14.49"
+    "esbuild": "^0.14.49",
+    "node-static": "^0.7.11"
   },
   "dependencies": {
     "comlink": "^4.3.1"
