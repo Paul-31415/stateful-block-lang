@@ -1,0 +1,15 @@
+{
+  "name": "s7scratch",
+  "version": "1.0.0",
+  "description": "big kid scratch with scheme",
+  "main": "start.js",
+  "author": "Paul",
+  "license": "MIT",
+  "private": true,
+  "devDependencies": {
+    "esbuild": "^0.14.49"
+  },
+  "dependencies": {
+    "comlink": "^4.3.1"
+  }
+}

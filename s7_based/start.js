@@ -1,6 +1,16 @@
-Module.onRuntimeInitialized = () => {   
-    //Module.cwrap('main')();
-    eval_string = Module.cwrap('eval_string', 'string', ['string']);
-    get_out = Module.cwrap('get_out', 'string');
-    get_err = Module.cwrap('get_err', 'string');
+import * as Comlink from "comlink";
+
+function newScheme(){ 
+    const webworker = new Worker("build/scheme_worker.js");
+    const scheme = Comlink.wrap(webworker);
+    return {scheme,webworker};
 }
+globalThis.scheme = newScheme();
+globalThis.scheme2 = newScheme();
+
+
+
+
+
+
+
