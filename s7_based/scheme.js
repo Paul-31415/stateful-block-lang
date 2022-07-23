@@ -1,4 +1,3 @@
-console.log("loaded! ww");
 import * as Comlink from "comlink";
 importScripts("main.js");
 
@@ -12,3 +11,4 @@ Module.onRuntimeInitialized = () => {
     };
     Comlink.expose(scheme);
 }
+ 

@@ -1,6 +1,8 @@
 
-b: start.js build/main.html build/scheme_worker.js build
-	yarn esbuild start.js --bundle --outfile=build/bundle.js --sourcemap
+b: start.ts s_parse.ts build/main.html build/scheme_worker.js build
+	yarn esbuild start.ts --bundle --outfile=build/bundle.js --sourcemap
+type: *.ts
+	yarn tsc
 build:
 	mkdir build
 build/scheme_worker.js:
