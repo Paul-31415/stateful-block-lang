@@ -1,14 +1,34 @@
 
-
-
 type prim = string | null;
 type Thing = Cons | prim;
-interface Cons{
+export interface Cons {
   _is_Cons : true,
   car : Thing,
   cdr : Thing,
-} 
+}
 export function isCons(v:any): v is Cons {return v && (v._is_Cons === true);}
+function isConsOrNil(v:any): v is Cons|null {return (v === null) || (v._is_Cons === true);}
+function prettyPrintNCons(c:Cons|null):string{
+  if (c === null){
+    return "";
+  }
+  const cars = prettyPrintThing(c.car);
+  if (isConsOrNil(c.cdr)){
+    return cars + " " + prettyPrintNCons(c.cdr);
+  }
+  return cars + " . " + prettyPrintThing(c.cdr);
+}
+export function prettyPrintThing(c:Thing):string{
+  if (c === null){
+    return "()"
+  }
+  if (isConsOrNil(c)){
+    return "("+prettyPrintNCons(c)+")";
+  }
+  return ""+c;
+}
+
+
 type ParseThing = ParseCons | prim;
 type ParseCons = {_is_ParseCons : true, car : ParseVal, cdr : ParseVal };
 function isParseCons(v:any): v is ParseCons {return v && (v._is_ParseCons === true);}
@@ -16,16 +36,17 @@ type ParseRef = {_is_ref:true,ref:string};
 function isRef(v:any): v is ParseRef {return v && (v._is_ref === true);}
 type ParseVal = ParseThing|null|ParseRef;
 type ParseRes = {i:number,v:ParseVal};
-class ParseError extends Error {
+export class ParseError extends Error {
   args : any[];
   constructor(a:any[]){super(a[0]);this.args = a;}
 } 
 
 
+
 //  #1='("foo \"\n\\\"\\ ( + 2 )))\t  \\" (#1# . 2) . #1#)     
 //const s_string = /^"([^\\"]?(\\.)?)*"&/;
-const s_def = /^#\d+=&/;
-const s_ref = /^#\d+#&/;
+const s_def = /^#\d+=$/;
+const s_ref = /^#\d+#$/;
 const s_atom = /^[^\(\)]+$/;
 const s_token = /("([^\\"]?(\\.)?)*")|(#\d+=)|(#\d+#)|(\()|(\))|(')|([^\(\)\s]+)/;
 //const well_formed = /^(\s*(("([^\\"]?(\\.)?)*")|(#\d+=)|(#\d+#)|(\()|(\))|(')|([^\(\)\s]+))\s*)*$/;
@@ -67,6 +88,9 @@ function parse_cons(toks: RegExpMatchArray,i:number,defs:Map<string,ParseVal>): 
   return {i:r.i+1,v:r.v};
 }
 function parse_ncons(toks: RegExpMatchArray,i:number,defs:Map<string,ParseVal>): ParseRes {
+  if (toks[i] === undefined) {
+    throw new ParseError(["unmatched '('"]);
+  }
   if (toks[i] == ")"){// epsilon
     return {i,v:null};
   }
@@ -88,12 +112,12 @@ function quote(r:ParseRes):ParseRes{
 function parse_thing(toks: RegExpMatchArray,i:number,defs:Map<string,ParseVal>): ParseRes {
   //thing := ( [DEF]  ( ATOM | cons | quoted )) | REF
   if (s_ref.test(toks[i])){
-    return {i:i+1,v:{_is_ref:true as const,ref:toks[i].substring(1,toks[i].length-2)}};
+    return {i:i+1,v:{_is_ref:true as const,ref:toks[i].substring(1,toks[i].length-1)}};
   }  
   //[DEF]  ( ATOM | cons | quoted )
   let ds:string|null = null;
   if (s_def.test(toks[i])){
-    ds = toks[i].substring(1,toks[i].length-2);
+    ds = toks[i].substring(1,toks[i].length-1);
     if (defs.has(ds)){
       throw new ParseError(["S-expr ParseError: double definition of ref key",ds,"at",i,toks]);
     }
@@ -123,8 +147,10 @@ function link_refs(r:ParseVal,defs:Map<string,ParseVal>,map:Map<ParseVal,Thing>|
     throw new ParseError(["S-expr ParseError: missing key in reference",r.ref,defs]);
   }
   if (isParseCons(r)){
-    const res = {_is_Cons:true as const,car:link_refs(r.car,defs,map),cdr:link_refs(r.cdr,defs,map)};
+    const res:Thing = {_is_Cons:true as const,car:null,cdr:null};
     map.set(r,res);
+    res.car = link_refs(r.car,defs,map);
+    res.cdr = link_refs(r.cdr,defs,map);
     return res;
   }
   map.set(r,r);
