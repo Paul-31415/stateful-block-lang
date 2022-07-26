@@ -3,7 +3,7 @@ import {describe, expect, test} from '@jest/globals';
 
 describe('isCons', () => {
   test('checks if a thing is a cons cell', () => {
-    expect(isCons({car:"a",cdr:null,_is_Cons:true})).toBe(true);
+    expect(isCons(new Cons("a",null))).toBe(true);
     expect(isCons(null)).toBeFalsy();
   });
 });
@@ -16,19 +16,7 @@ describe('parse', () => {
 
   test('parses a cons cell', () => {
     const parsed = parse('(foo bar baz)');
-    const expected: Cons = {
-      _is_Cons: true,
-      car: 'foo',
-      cdr: {
-        _is_Cons: true,
-        car: 'bar',
-        cdr: {
-          _is_Cons: true,
-          car: 'baz',
-          cdr: null,
-        }
-      }
-    };
+    const expected: Cons = new Cons('foo',new Cons('bar', new Cons('baz',null)));
     expect(parsed).toEqual(expected);
   });
 
@@ -39,13 +27,16 @@ describe('parse', () => {
   });
   test('parses a recursive structure', () => {
     const parsed = parse('#1=(1 . #1#)');
-    const expected: Cons = {
-      _is_Cons: true,
-      car: '1',
-      cdr: null,
-    };
+    const expected: Cons = new Cons('1',null);
     expected.cdr = expected;
     expect(parsed).toEqual(expected);
   });
 
+  test('parses (foo . bar)', () => {
+    const expected: Cons = new Cons('foo','bar');
+    expect(parse('(foo . bar)')).toEqual(expected);
+  });
+  test('parses all features',() => {
+    expect(parse("#1='(\"foo \\\"\\n\\\\\\\"\\\\ ( + 2 )))\\t  \\\\\" #2=(#1# . 2) #1# . #2#) ")).toBeDefined();
+  });
 });
