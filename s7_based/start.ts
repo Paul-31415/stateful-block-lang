@@ -1,17 +1,13 @@
-import * as Comlink from "comlink";
-import {parse,prettyPrintThing} from "./s_parse";
+import { newScheme } from "./scheme_rpc";
+import { parse, prettyPrintThing, safePrintThing } from "./s_parse";
 
-export function newScheme(){ 
-    const webworker = new Worker("build/scheme_worker.js");
-    const scheme = Comlink.wrap(webworker);
-    return {scheme,webworker};
-}
 (window as any).pprint = prettyPrintThing;
+(window as any).sprint = safePrintThing;
 (window as any).parse = parse;
 (window as any).newScheme = newScheme;
+(window as any).editor = newScheme();
 (window as any).scheme = newScheme();
 (window as any).scheme2 = newScheme();
-
 
 
 
