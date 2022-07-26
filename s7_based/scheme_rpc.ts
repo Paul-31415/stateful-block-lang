@@ -1,4 +1,5 @@
 import * as Comlink from "comlink";
+import { PromiseQueue } from "./sequentialize";
 import { parse, prettyPrintThing, Cons, Thing, isCons } from "./s_parse";
 
 
@@ -20,19 +21,19 @@ type ThingOrCont = Thing | {
   call:(a:Thing)=>Promise<ThingOrCont>
 };
 export class Scheme implements SchemeWorker{
-  _lock:boolean;
-  constructor(public scheme:SchemeComlink,public webworker:Worker){this._lock = false;}
+  promises:PromiseQueue;
+  constructor(public scheme:SchemeComlink,public webworker:Worker){this.promises = new PromiseQueue();}
   async runROE(code:string){
-    while (this._lock){ await this.scheme.ping();}
-    this._lock = true;
-    const result = await this.scheme.eval_string(code);
-    const r = {
-      result,
-      output:await this.scheme.get_out(),
-      error: await this.scheme.get_err()
+    async function run(scheme:SchemeComlink){
+      const result = await scheme.eval_string(code);
+      const r = {
+        result,
+        output:await scheme.get_out(),
+        error: await scheme.get_err()
+      };
+      return r;
     };
-    this._lock = false;
-    return r;
+    return this.promises.enqueue(()=>run(this.scheme));
   }  
   async run(code: string): Promise<ThingOrCont>{
     const res = await this.runROE(code);
@@ -60,6 +61,21 @@ export class Scheme implements SchemeWorker{
   }
   runLines(code:string){
     return this.run("(begin\n"+code+"\n)");
+  }
+  runFile(url:URL){
+    function res(fn:(value: unknown) => void,s:Scheme){
+      const req = new XMLHttpRequest();
+      req.onreadystatechange = ()=>{
+        if (req.readyState == 4 && req.status == 200) {
+          fn(s.runLines(req.responseText));
+        }
+      }
+      req.open("GET",url);
+      req.send(null);
+    }
+    return new Promise(((resolve:(value: unknown) => void) => {
+      res(resolve,this);
+    }).bind(this));
   }
   
 }
