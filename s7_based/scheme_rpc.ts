@@ -98,14 +98,44 @@ export class Scheme implements SchemeWorker{
 export type RPCResolver = {
   resolve: (c:Cont) => Promise<ThingOrCont>|ThingOrCont;  
 }
+export type RPCLib = Map<string,(args:Thing) => Promise<any>>;
+export class RPCLibResolver implements RPCResolver{
+  constructor(public libs: RPCLib[]){}
+  async resolve(c:Cont){
+    for (let lib of this.libs){
+      if (typeof c.func === "string"){
+        const v = lib.get(c.func);
+        if (v !== undefined){
+          return c.call(thingify(await v(c.args)));
+        }
+      }
+    }
+    return c;
+  }
+}
 
-  
-//export const RPCLibResolver:RPCResolver = {
-
-//}
-
-
-
+export const HTTPLib:RPCLib = new Map([
+  ["get",async (args:Thing) => {
+    if (isCons(args) && typeof args.car === "string"){
+      const url = JSON.parse(args.car);
+      function res(fn:(value: any) => void){
+        const req = new XMLHttpRequest();
+        req.onreadystatechange = ()=>{
+          if (req.readyState == 4){// && req.status == 200) {
+            fn(req);
+          }
+        }
+        req.open("GET",url);
+        req.send(null);
+      }
+      return new Promise(res);
+    }
+    return null;
+  }],
+]);
+export const TimeLib:RPCLib = new Map([
+  ["millis",async (_a:Thing)=>new Date().getMilliseconds()]
+]);
 export const GetRequestResolver:RPCResolver = {
   resolve(c:Cont){
     if (c.func === "get"){
@@ -137,12 +167,16 @@ export const GetRequestResolver:RPCResolver = {
 export class SchemeRPCRes{
   constructor(public scheme:Scheme,public resolver:RPCResolver){}
   async run(code:string){
-    const res = await this.scheme.run(code);
-    if (isCont(res)){
-      return this.resolver.resolve(res);
-    }else{
-      return res;
+    let res = await this.scheme.run(code);
+    while (isCont(res)){
+      const old = res;
+      res = await this.resolver.resolve(res);
+      if (res === old){
+        return res;
+      }
     }
+    return res;
+    
   }
 }
 
@@ -153,7 +187,7 @@ export function newScheme(){
   const sw = new Scheme(scheme as unknown as SchemeComlink,webworker);
   //sw.runFile("../rpc.scm");//temporary solution for standard library
   //sw.run("(define-macro (object . a) `',a)");
-  return new SchemeRPCRes(sw,GetRequestResolver);
+  return new SchemeRPCRes(sw,new RPCLibResolver([HTTPLib,TimeLib]));
 }
 
 
