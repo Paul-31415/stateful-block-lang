@@ -1,6 +1,6 @@
 import * as Comlink from "comlink";
 import { PromiseQueue } from "./sequentialize";
-import { parse, prettyPrintThing, Cons, Thing, isCons } from "./s_parse";
+import { parse, prettyPrintThing, Cons, Thing, isCons, isConsOrNil, thingify } from "./s_parse";
 
 type SchemeComlink = {
   get_err: () => Promise<string>;
@@ -10,24 +10,23 @@ type SchemeComlink = {
 };
 
 export type SchemeWorker = {
-  scheme: SchemeComlink;
-  webworker: Worker;
-};
-export class SchemeError extends Error {}
-type ThingOrCont =
-  | Thing
-  | {
-      func: Thing;
-      args: Thing;
-      call: (a: Thing) => Promise<ThingOrCont>;
-    };
-export class Scheme implements SchemeWorker {
-  promises: PromiseQueue;
-  constructor(public scheme: SchemeComlink, public webworker: Worker) {
-    this.promises = new PromiseQueue();
-  }
-  async runROE(code: string) {
-    async function run(scheme: SchemeComlink) {
+  scheme:SchemeComlink,
+  webworker:Worker,
+}
+export class SchemeError extends Error{}
+type Cont = {
+  func:Thing,
+  args:Thing,
+  call:(a:Thing)=>Promise<ThingOrCont>
+}
+export function isCont(c:ThingOrCont): c is Cont{return !isConsOrNil(c) && typeof(c) !== "string";}
+type ThingOrCont = Thing | Cont;
+
+export class Scheme implements SchemeWorker{
+  promises:PromiseQueue;
+  constructor(public scheme:SchemeComlink,public webworker:Worker){this.promises = new PromiseQueue();}
+  async runROE(code:string){
+    async function run(scheme:SchemeComlink){
       const result = await scheme.eval_string(code);
       const r = {
         result,
@@ -96,9 +95,66 @@ export class Scheme implements SchemeWorker {
     );
   }
 }
+export type RPCResolver = {
+  resolve: (c:Cont) => Promise<ThingOrCont>|ThingOrCont;  
+}
 
-export function newScheme(): Scheme {
+  
+//export const RPCLibResolver:RPCResolver = {
+
+//}
+
+
+
+export const GetRequestResolver:RPCResolver = {
+  resolve(c:Cont){
+    if (c.func === "get"){
+      if (isCons(c.args) && c.args.car && typeof c.args.car === "string"){
+        const url = JSON.parse(c.args.car);
+        function res(fn:(value: Thing) => void){
+          const req = new XMLHttpRequest();
+          req.onreadystatechange = ()=>{
+            if (req.readyState == 4){// && req.status == 200) {
+              fn(thingify(req));
+            }
+          }
+          req.open("GET",url);
+          req.send(null);
+        }
+        return new Promise(res).then((r)=>{
+          return c.call(r);
+        });
+      } else {
+        return c;
+      }
+    }else{
+      return c;
+    }
+  }
+}
+
+
+export class SchemeRPCRes{
+  constructor(public scheme:Scheme,public resolver:RPCResolver){}
+  async run(code:string){
+    const res = await this.scheme.run(code);
+    if (isCont(res)){
+      return this.resolver.resolve(res);
+    }else{
+      return res;
+    }
+  }
+}
+
+
+export function newScheme(){ 
   const webworker = new Worker("build/scheme_worker.js");
   const scheme = Comlink.wrap(webworker);
-  return new Scheme(scheme as unknown as SchemeComlink, webworker);
+  const sw = new Scheme(scheme as unknown as SchemeComlink,webworker);
+  //sw.runFile("../rpc.scm");//temporary solution for standard library
+  //sw.run("(define-macro (object . a) `',a)");
+  return new SchemeRPCRes(sw,GetRequestResolver);
 }
+
+
+
