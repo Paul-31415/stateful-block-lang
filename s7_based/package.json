@@ -7,13 +7,15 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "serve": "static -p 8000"
+    "serve": "static -p 8000",
+    "format": "yarn prettier --write ."
   },
   "devDependencies": {
     "@types/jest": "^28.1.6",
     "esbuild": "^0.14.49",
     "jest": "^28.1.3",
     "node-static": "^0.7.11",
+    "prettier": "2.7.1",
     "ts-jest": "^28.0.7",
     "typescript": "^4.7.4"
   },

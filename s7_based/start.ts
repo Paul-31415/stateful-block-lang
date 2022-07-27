@@ -8,8 +8,3 @@ import { parse, prettyPrintThing, safePrintThing } from "./s_parse";
 (window as any).editor = newScheme();
 (window as any).scheme = newScheme();
 (window as any).scheme2 = newScheme();
-
-
-
-
-
