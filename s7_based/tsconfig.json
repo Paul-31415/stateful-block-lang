@@ -3,12 +3,7 @@
     "alwaysStrict": true,
     "declaration": true,
     "incremental": false,
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext",
-      "scripthost"
-    ],
+    "lib": ["dom", "dom.iterable", "esnext", "scripthost"],
     "module": "esnext",
     "noFallthroughCasesInSwitch": true,
     "noImplicitAny": true,
@@ -21,14 +16,8 @@
     "strictNullChecks": true,
     "target": "es2020",
     "noEmit": true,
-    "moduleResolution":"node",
+    "moduleResolution": "node"
   },
-  "exclude": [
-    "node_modules",
-    "**/*.spec.ts",
-    "build/*"
-  ],
-  "include": [
-    "./**/*"
-  ]
+  "exclude": ["node_modules", "**/*.spec.ts", "build/*"],
+  "include": ["./**/*"]
 }
