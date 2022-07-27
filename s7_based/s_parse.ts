@@ -33,25 +33,13 @@ export class Cons {
     return undefined;
   }
 }
-export function isCons(v: any): v is Cons {
-  return v && v._is_Cons === true;
-}
-function isConsOrNil(v: any): v is Cons | null {
-  return v === null || v._is_Cons === true;
-}
-function prettyPrintNCons(
-  c: Cons | null,
-  seen: Set<Cons> | null = null,
-  num: Map<Cons, number> | null = null,
-  show: boolean = false
-): string {
-  if (seen === null) {
-    seen = new Set<Cons>();
-  }
-  if (num === null) {
-    num = new Map<Cons, number>();
-  }
-  if (c === null) {
+
+export function isCons(v:any): v is Cons {return v && (v._is_Cons === true);}
+export function isConsOrNil(v:any): v is Cons|null {return (v === null) || (v._is_Cons === true);}
+function prettyPrintNCons(c:Cons|null,seen:Set<Cons>|null=null,num:Map<Cons,number>|null=null,show:boolean=false):string{
+  if (seen === null){seen = new Set<Cons>();}
+  if (num === null){num = new Map<Cons,number>();}
+  if (c === null){
     return "";
   }
   const cars = prettyPrintThing(c.car, seen, num);
@@ -115,6 +103,56 @@ export function safePrintThing(c: Thing): string {
   see(c, seen, num);
   return prettyPrintThing(c, null, num);
 }
+
+export function thingify(o:any,seen:Map<object,Cons>|null=null):Thing{
+  if (o === null) {return null;}
+  switch (typeof o){
+    case "string":
+      return JSON.stringify(o); 
+    case "number":
+      return o.toString();
+    case "bigint":
+      return new Cons("bignum",new Cons(JSON.stringify(o.toString()),null));
+    case "boolean":
+      return o?"#t":"#f";
+    case "symbol":
+      return o.toString();
+    case "undefined":
+    case "object":
+      if (seen === null){seen = new Map<object,Cons>();}
+      const m = seen.get(o);
+      if (m !== undefined){
+        return m;
+      }
+      if (isCons(o)){
+        seen.set(o,o);
+        return o;
+      }
+      if (Array.isArray(o)){
+        const r = new Cons("list",null);
+        seen.set(o,r);
+        let t = r;
+        for (let k = 0; k < o.length; k++){
+          t.cdr = new Cons(thingify(o[k],seen),null);
+          t = t.cdr;
+        }
+        return r; 
+      }
+      const r = new Cons("object",null);
+      seen.set(o,r);
+      let t = r;
+      for (const k in o){
+        t.cdr = new Cons(new Cons(k,thingify(o[k],seen)),null);
+        t = t.cdr;
+      }
+      return r; 
+    case "function":
+      //todo: rpc stuff here?
+      return null;
+  }
+}
+
+
 
 type ParseThing = ParseCons | Prim;
 type ParseCons = { _is_ParseCons: true; car: ParseVal; cdr: ParseVal };
