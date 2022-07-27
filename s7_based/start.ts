@@ -1,6 +1,7 @@
 import { newScheme } from "./scheme_rpc";
-import { parse, prettyPrintThing, safePrintThing } from "./s_parse";
+import { parse, prettyPrintThing, safePrintThing, thingify } from "./s_parse";
 
+(window as any).thingify = thingify;
 (window as any).pprint = prettyPrintThing;
 (window as any).sprint = safePrintThing;
 (window as any).parse = parse;
