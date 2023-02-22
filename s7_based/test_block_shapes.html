@@ -1,0 +1,117 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <title>Block Shapes</title>
+  <style type="text/css">
+    html {
+        /* overflow:hidden; */
+    }
+    body {
+        margin: 0;
+        padding: 0;
+	background-color: #000000;
+    }
+  </style>
+</head>
+
+<body>
+  <svg id="svg" width="100%" height="1400">
+    <title>Blocks</title>
+    <rect x="4" y="5" width="8" height="10" fill="#007bff">
+    <script type="application/javascript">
+    let elem = document.currentScript.parentElement;
+    elem.addEventListener('mousedown',(evt)=>{
+        elem.remove();
+    });
+    </script>
+    </rect>
+    <g transform="translate(100,100)">
+      <path stroke="none" fill="rgb(192,96,96)" d="
+           M -3,0
+           a 3,3,0 0,1 3,-3
+           h 4
+           c 4,0 2,-4 6,-4
+           h 8
+           c 4,0 2,4 6,4
+
+           h 54
+
+           a 3,3,0 0,1 3,3
+           
+           v 16
+           
+           a 3,3,0 0,1 -3,3
+           H 24 
+           c -4,0 -2,-4 -6,-4
+           h -8
+           c -4,0 -2,4 -6,4
+           H 0
+           a 3,3,0 0,1 -3,-3
+           z
+                                                   "/>
+    </g>
+    <g transform="translate(100,200)">
+      <path stroke="none" fill="rgb(96,192,96)" d="
+           M -3,0
+                                                   
+           a 3,3,0 0,1 3,-3
+           h 7
+           v -4
+           h 3 8 3
+           v 4
+
+           h 54
+
+           a 3,3,0 0,1 3,3
+           
+           v 16
+           
+           a 3,3,0 0,1 -3,3
+           H 24
+           h -3
+           v -4
+           h -3 -8 -3
+           v 4
+           H 0
+           a 3,3,0 0,1 -3,-3
+           z
+                                                   "/>
+    </g>
+    <g transform="translate(100,300)">
+      <path stroke="none" fill="rgb(96,96,192)" d="
+           M -3,0
+                                                   
+           a 3,3,0 0,1 3,-3
+           h 4 
+           l 5,-4 5,4 5,-4 5,4
+           h 0
+           
+           h 54
+
+           a 3,3,0 0,1 3,3
+           
+           v 16
+           
+           a 3,3,0 0,1 -3,3
+           H 24
+           h -0
+           l -10,-4 -10,4
+           h -4 
+           H 0
+           a 3,3,0 0,1 -3,-3
+           z
+                                                   "/>
+    </g>
+  </svg>
+  <script type="application/javascript">
+    var svg = document.getElementById("svg");
+    //https://www.petercollingridge.co.uk/tutorials/svg/interactive/dragging/
+    var blockId = 0;
+    class Block{
+        constructor(){
+        }
+    }
+  </script>
+</body>
+</html>
+
