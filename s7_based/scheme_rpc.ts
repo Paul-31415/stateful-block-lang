@@ -1,6 +1,8 @@
 import * as Comlink from "comlink";
-import { PromiseQueue } from "./sequentialize";
+import { PromiseQueue, sequentialize } from "./sequentialize";
 import { parse, prettyPrintThing, Cons, Thing, isCons, isConsOrNil, thingify } from "./s_parse";
+import { some, none, Option, isSome } from "fp-ts/Option";
+import { ObjLib } from "./jsObj_rpc";
 
 type SchemeComlink = {
   get_err: () => Promise<string>;
@@ -14,30 +16,28 @@ export type SchemeWorker = {
   webworker:Worker,
 }
 export class SchemeError extends Error{}
-type Cont = {
+export type RPCCall = {
+  origin:Scheme,
   func:Thing,
   args:Thing,
-  call:(a:Thing)=>Promise<ThingOrCont>
+  call:(a:Thing)=>Promise<ThingOrRPCCall>,
+  error:(a:Thing)=>Promise<ThingOrRPCCall>,
 }
-export function isCont(c:ThingOrCont): c is Cont{return !isConsOrNil(c) && typeof(c) !== "string";}
-type ThingOrCont = Thing | Cont;
+export function isRPCCall(c:ThingOrRPCCall): c is RPCCall{return !isConsOrNil(c) && typeof(c) !== "string";}
+type ThingOrRPCCall = Thing | RPCCall;
 
 export class Scheme implements SchemeWorker{
-  promises:PromiseQueue;
-  constructor(public scheme:SchemeComlink,public webworker:Worker){this.promises = new PromiseQueue();}
-  async runROE(code:string){
-    async function run(scheme:SchemeComlink){
-      const result = await scheme.eval_string(code);
-      const r = {
-        result,
-        output: await scheme.get_out(),
-        error: await scheme.get_err(),
-      };
-      return r;
-    }
-    return this.promises.enqueue(() => run(this.scheme));
-  }
-  async run(code: string): Promise<ThingOrCont> {
+  constructor(public scheme:SchemeComlink,public webworker:Worker){}
+  runROE = sequentialize(async (code:string)=>{
+    const result = await this.scheme.eval_string(code);
+    const r = {
+      result,
+      output: await this.scheme.get_out(),
+      error: await this.scheme.get_err(),
+    };
+    return r;
+  });
+  async run(code: string): Promise<ThingOrRPCCall> {
     const res = await this.runROE(code);
     if (res.output !== "") {
       console.log(res.output);
@@ -59,6 +59,7 @@ export class Scheme implements SchemeWorker{
         return r;
       }
       return {
+        origin:this,
         func,
         args,
         call: ((r: Thing) => {
@@ -66,6 +67,15 @@ export class Scheme implements SchemeWorker{
             new Cons(
               "ret/cc",
               new Cons("'" + continuation, new Cons(r, null))
+            ).toString()
+          );
+        }).bind(this),
+        error: ((r: Thing) => {
+          //console.log(r);
+          return this.run(
+            new Cons(
+              "error/cc",
+              new Cons("'" + continuation, r)
             ).toString()
           );
         }).bind(this),
@@ -95,26 +105,43 @@ export class Scheme implements SchemeWorker{
     );
   }
 }
+
+export type Resolution = Option<ThingOrRPCCall>;
+
 export type RPCResolver = {
-  resolve: (c:Cont) => Promise<ThingOrCont>|ThingOrCont;  
+  resolve: (c:RPCCall) => Promise<Resolution>|Resolution;  
 }
+
 export type RPCLib = Map<string,(args:Thing) => Promise<any>>;
 export class RPCLibResolver implements RPCResolver{
   constructor(public libs: RPCLib[]){}
-  async resolve(c:Cont){
+  async resolve(c:RPCCall): Promise<Resolution>{
     for (let lib of this.libs){
       if (typeof c.func === "string"){
         const v = lib.get(c.func);
         if (v !== undefined){
-          return c.call(thingify(await v(c.args)));
+          return some(await c.call(thingify(await v(c.args))));
         }
       }
     }
-    return c;
+    return none;
   }
 }
+export class RPCResolvers implements RPCResolver{
+ constructor(public resolvers: RPCResolver[]){}
+  async resolve(c:RPCCall): Promise<Resolution>{
+    for (let lib of this.resolvers){
+      const r = await lib.resolve(c);
+      if (isSome(r)) {
+        return r;
+      }
+    }
+    return none;
+  }
+} 
 
-export const HTTPLib:RPCLib = new Map([
+
+export const HTTPReqLib:RPCLib = new Map([
   ["get",async (args:Thing) => {
     if (isCons(args) && typeof args.car === "string"){
       const url = JSON.parse(args.car);
@@ -133,11 +160,19 @@ export const HTTPLib:RPCLib = new Map([
     return null;
   }],
 ]);
+
+// 
+// rpc function 
+// 
+// 
+// 
+
 export const TimeLib:RPCLib = new Map([
-  ["millis",async (_a:Thing)=>new Date().getMilliseconds()]
+  ["millis",async (_a:Thing)=>new Date().getMilliseconds()],
+  ['ver',async (_a:Thing)=>8]
 ]);
 export const GetRequestResolver:RPCResolver = {
-  resolve(c:Cont){
+  async resolve(c:RPCCall):Promise<Resolution>{
     if (c.func === "get"){
       if (isCons(c.args) && c.args.car && typeof c.args.car === "string"){
         const url = JSON.parse(c.args.car);
@@ -151,32 +186,34 @@ export const GetRequestResolver:RPCResolver = {
           req.open("GET",url);
           req.send(null);
         }
-        return new Promise(res).then((r)=>{
-          return c.call(r);
+        return new Promise(res).then(async (r)=>{
+          return some(await c.call(r));
         });
       } else {
-        return c;
+        return none;
       }
     }else{
-      return c;
+      return none;
     }
   }
 }
+
+
 
 
 export class SchemeRPCRes{
   constructor(public scheme:Scheme,public resolver:RPCResolver){}
   async run(code:string){
     let res = await this.scheme.run(code);
-    while (isCont(res)){
-      const old = res;
-      res = await this.resolver.resolve(res);
-      if (res === old){
+    while (isRPCCall(res)){
+      const r = await this.resolver.resolve(res);
+      if (isSome(r)){
+        res = r.value;
+      }else{
         return res;
       }
     }
     return res;
-    
   }
 }
 
@@ -187,8 +224,8 @@ export function newScheme(){
   const sw = new Scheme(scheme as unknown as SchemeComlink,webworker);
   //sw.runFile("../rpc.scm");//temporary solution for standard library
   //sw.run("(define-macro (object . a) `',a)");
-  return new SchemeRPCRes(sw,new RPCLibResolver([HTTPLib,TimeLib]));
+  const olib = new ObjLib();
+  olib.wrap({foo:"asdf",bar:{ghjkl:123}},sw,"test");
+  return new SchemeRPCRes(sw,new RPCResolvers([new RPCLibResolver([HTTPReqLib,TimeLib]),
+                                               olib]));
 }
-
-
-

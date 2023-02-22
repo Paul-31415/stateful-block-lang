@@ -46,3 +46,27 @@ const char* get_out() {
 const char* get_err() {
      return s7_get_output_string(g_sc, s7_current_error_port(g_sc));
 }
+
+
+
+
+
+/*
+  note for s7.h@164
+  young objects being gc-protected could be replaced with a construct
+  similar to
+  gc_begin_protect_young();
+  stuff
+  gc_end_protect_young();
+
+  which would be better as brackets or braces macros.
+
+ */
+
+
+
+
+
+
+//todo: float32 vector
+// for https://github.com/brianreavis/canvas.hdr.js float32 canvas element

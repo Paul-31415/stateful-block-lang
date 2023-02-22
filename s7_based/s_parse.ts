@@ -1,5 +1,10 @@
+import { isLeft, isRight, left, right } from 'fp-ts/lib/Either';
+import { some } from 'fp-ts/lib/Option';
+import * as t from 'io-ts';
+import { RPCCall } from './scheme_rpc';
 type Prim = string | null;
 export type Thing = Cons | Prim;
+
 export class Cons {
   _is_Cons = true;
   constructor(public car: Thing, public cdr: Thing) {}
@@ -151,7 +156,6 @@ export function thingify(o:any,seen:Map<object,Cons>|null=null):Thing{
       return null;
   }
 }
-
 
 
 type ParseThing = ParseCons | Prim;
@@ -345,3 +349,125 @@ function link_refs(
   map.set(r, r);
   return r;
 }
+
+export function thingifyList(...arr:any[]):Thing{
+  let h:Thing = null;
+  for (let i = arr.length-1;i>=0;i--){
+    h = new Cons(thingify(arr[i]),h);
+  }
+  return h;
+}
+export function list(...arr:Thing[]):Thing{
+  let h:Thing = null;
+  for (let i = arr.length-1;i>=0;i--){
+    h = new Cons(arr[i],h);
+  }
+  return h;
+}
+export function q(v:Thing):Thing{
+  return list("quote",v);
+}
+//^
+//|
+// parsing
+// types
+//|
+//v
+
+type SchemeString = `"${string}"`;
+function valSS(v:unknown):v is SchemeString {
+  return (typeof v === "string")
+    && (v.length >= 2)
+    && (v[0]==='"' && v.endsWith('"'));
+}
+
+export const SString = new t.Type<SchemeString, SchemeString>(
+  "SchemeString",
+  valSS,
+  (i,context)=>{
+    const d = t.string.validate(i,context);
+    if (isLeft(d)) return d;
+    if (valSS(d.right)) return right(d.right);
+    return left([
+      {
+        value: i,
+        context,
+        message: "SchemeString must be quoted with double quotes",
+      }
+    ]);
+  },
+  (a: SchemeString)=>a
+);
+export const SSymbol = new t.Type(
+  "SchemeSymbol",
+  (v:unknown):v is string=>!valSS(v),
+  (i,context)=>{
+    const d = t.string.validate(i,context);
+    return isLeft(d) ? d :
+      !valSS(d.right) ? d : left([
+        {
+          value: i,
+          context,
+          message: "SchemeSymbol must not be quoted",
+        }
+      ]);
+  },
+  (a:string)=>a
+);
+
+
+function consType<Car, CarEncode, Cdr, CdrEncode>(car: t.Type<Car, CarEncode>,
+                                                  cdr: t.Type<Cdr, CdrEncode>) {
+  return new t.Type(
+    "Cons",
+    (v: unknown): v is Cons & {car: Car, cdr: Cdr} => isCons(v),
+    (i, context) => {
+      const c = t.type({car, cdr, _is_Cons: t.literal(true)});
+      const v = c.validate(i, context)
+      if (isLeft(v)) {
+        return v;
+      }
+
+      if (!(i instanceof Cons)) {
+        return left([
+          {
+            value: i,
+            context,
+            message: `${i} is not an instance of Cons`,
+          }
+        ]);
+      }
+      return right(v.right as unknown as Cons & {car: Car, cdr: Cdr});
+    },
+    (a:Cons)=>a
+  );
+}
+
+
+type MC<A, AE, B = undefined, BE = undefined> = ReturnType<typeof consType<A, AE, B, BE>>;
+
+
+type TypeToCons<First, Rest extends [...t.Type<any, any>[]]> = MC<
+  First extends t.Type<infer A, infer _AE> ? A : never,
+  First extends t.Type<infer _A, infer AE> ? AE : never,
+  ListToCons<Rest> extends t.Type<infer B, infer _BE> ? B : never,
+  ListToCons<Rest> extends t.Type<infer _B, infer BE> ? BE : never>;
+
+type ListToCons<T extends [...t.Type<any, any>[]]> =
+  T extends {length: 0} ? typeof t.null :
+  T extends [infer First, ...infer Rest extends t.Type<any, any>[]] ? TypeToCons<First, Rest> : never
+
+
+
+export function listType<T extends [...t.Type<any, any>[]]>(...types: T): ListToCons<T> {
+  let h:any = t.null;
+  for (let i = types.length-1;i>=0;i--){
+    h = consType(types[i],h);
+  }
+  return h;
+} 
+
+
+
+// https://iainctduncan.github.io/scheme-for-max-docs/s7.html#about-s7-and-s74-scheme
+// s7 is apparently thread-safe
