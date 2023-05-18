@@ -345,6 +345,13 @@ static s7_pointer js_ref_is_equal(s7_scheme *sc, s7_pointer args)
   return(s7_make_boolean(sc,r != 0));
 }
 
+//custom types?
+//struct 
+//static s7_pointer make_type(s7_scheme *sc, s7_pointer arg)
+//
+//
+
+
 
 
 static s7_pointer type_of(s7_scheme *sc, s7_pointer arg)

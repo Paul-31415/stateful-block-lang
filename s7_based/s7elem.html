@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>S7</title>
+    <style type="text/css">
+      html {
+          overflow: hidden;
+      }
+      body {
+          margin: 0;
+          padding: 0;
+      }
+    </style>
+    <script src="build/main.js"></script>
+    <script src="build/bundle.js"></script>
+  </head>
+  <body>
+    <s7-script src="svg.scm" style="display:none"> (demo)  1 </s7-script>
+    <s7-macro src="svg.scm" style="display:none"> (write "first") </s7-macro>
+    <s7-macro src="svg.scm" style="display:none"> (write "second") </s7-macro>
+    <s7-macro src="svg.scm" style="display:none"> (write "third") </s7-macro>
+    <s7-macro src="svg.scm" style="display:none" async> (write "async") </s7-macro>
+  </body>
+</html>

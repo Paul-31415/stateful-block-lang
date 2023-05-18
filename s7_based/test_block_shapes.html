@@ -17,14 +17,466 @@
 <body>
   <svg id="svg" width="100%" height="1400">
     <title>Blocks</title>
-    <rect x="4" y="5" width="8" height="10" fill="#007bff">
+    <filter id="Bevel">
+      <!--feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blurred" /-->
+      <feConvolveMatrix kernelMatrix="1 4 6 4 1" result="blurX" in="SourceGraphic" preserveAlpha="true" order="5 1"></feConvolveMatrix>
+      <feConvolveMatrix kernelMatrix="1 4 6 4 1" result="blurred" in="blurX" preserveAlpha="true" order="1 5"></feConvolveMatrix>
+      <feConvolveMatrix kernelMatrix="4 3 2 1 0, 3 2 1 0 -1, 2 1 24 -1 -2, 1 0 -1 -2 -3, 0 -1 -2 -3 -4" result="out" in="blurred" preserveAlpha="true" order="5"></feConvolveMatrix>
+    </filter>
+    <filter id="DropShadow">
+
+    </filter>
     <script type="application/javascript">
-    let elem = document.currentScript.parentElement;
-    elem.addEventListener('mousedown',(evt)=>{
-        elem.remove();
-    });
+      {
+          let elem = document.currentScript.parentElement;//the svg
+          let selectedBlock = undefined;
+          let highlightedDestination = undefined;
+          var stagedBlocks = [];
+          function makeBlockSVG(stroke="none",fill="rgb(128,128,128)",w=64,h=16){
+              let g = document.createElementNS("http://www.w3.org/2000/svg","g");
+              let p = document.createElementNS("http://www.w3.org/2000/svg","path");
+              let d = `M -3,0
+              a 3,3,0 0,1 3,-3
+              h 4
+              c 4,0 2,-4 6,-4
+              h 8
+              c 4,0 2,4 6,4
+              
+              h `+w+`
+              
+              a 3,3,0 0,1 3,3
+              
+              v `+h+`
+              
+              a 3,3,0 0,1 -3,3
+              H 24 
+              c -4,0 -2,-4 -6,-4
+              h -8
+              c -4,0 -2,4 -6,4
+              H 0
+              a 3,3,0 0,1 -3,-3
+              z`;
+              p.setAttribute('d',d);
+              p.setAttribute('stroke',stroke);
+              p.setAttribute('fill',fill);
+              p.setAttribute('filter','url(#Bevel)');
+              g.appendChild(p);
+              return g;
+          }
+          function commonAncestor(a,b=elem){
+              let sa = new Set();
+              sa.add(a);
+              let sb = new Set();
+              sb.add(b);
+              while (a.parentElement || b.parentElement){
+                  if (sa.has(b)){
+                      return b;
+                  }
+                  if(sb.has(a)){
+                      return a;
+                  }
+                  if (a.parentElement){
+                      a = a.parentElement;
+                      sa.add(a);
+                  }
+                  if (b.parentElement){
+                      b = b.parentElement;
+                      sb.add(b);
+                  }
+              }
+              //different trees
+              return null;
+          }
+          function treePath(a,b=elem){
+              let n = commonAncestor(a,b);
+              if (n !== null){
+                  let up = []
+                  while (a !== n){
+                      up.push(a);
+                      a = a.parentElement;
+                  }
+                  let down = [];
+                  while (b !== n){
+                      down.push(b);
+                      b = b.parentElement;
+                  }
+                  return {up:up,top:n,down:down.reverse()};
+              }
+          }
+          class Affine2D{
+              // a c e
+              // b d f
+              // 0 0 1
+              constructor(a=1,b=0,c=0,d=1,e=0,f=0){
+                  if (typeof a === "object"){
+                      f = a.f;
+                      e = a.e;
+                      d = a.d;
+                      c = a.c;
+                      b = a.b;
+                      a = a.a;
+                  }
+                  this.a = a;
+                  this.b = b;
+                  this.c = c;
+                  this.d = d;
+                  this.e = e;
+                  this.f = f;
+              }
+              apply(x,y=undefined){
+                  if (y !== undefined){
+                      return new Pt2D(this.a*x+this.c*y+this.e , this.b*x+this.d*y+this.f);
+                  }
+                  if (x.a !== undefined){
+                      return Affine2D(this.a*x.a+this.c*x.b,this.b*x.a+this.d*x.b,
+                                      this.a*x.c+this.c*x.d,this.b*x.c+this.d*x.d,
+                                      this.a*x.e+this.c*x.f+this.e,this.b*x.e+this.d*x.f+this.f
+                                     );
+                  }
+                  return new Pt2D(this.a*x.x+this.c*x.y+this.e , this.b*x.x+this.d*x.y+this.f);
+              }
+              timesEq(o){
+                  this.e += this.a*o.e+this.c*o.f; this.f += this.b*o.e+this.d*o.f;
+                  let a = this.a*o.a+this.c*o.b;
+                  this.c = this.a*o.c+this.c*o.d;this.a = a;                 
+                  let b = this.b*o.a+this.d*o.b;
+                  this.d = this.b*o.c+this.d*o.d;this.b = b;
+                  return this;
+              }
+              get det(){
+                  return this.a*this.d-this.b*this.c;
+              }
+              invert(){
+                  let det = this.det;
+                  let a = this.d/det;
+                  this.d = this.a/det;
+                  this.a = a;
+                  this.b /= -det;
+                  this.c /= -det;
+                  let e = this.e;
+                  this.e = this.a*e+this.c*this.f;
+                  this.f = this.b*e+this.d*this.f;
+                  return this;
+              }
+              inverse(){
+                  return new Affine2D(this).invert();
+              }
+          }
+          
+          class Pt2D{
+              constructor(x=0,y=0){
+                  if (typeof x === "object"){
+                      y = x.y;
+                      x = x.x;
+                  }
+                  this.x = x;
+                  this.y = y;
+              }
+              plus(x,y=undefined){
+                  if (y === undefined){
+                      return new Pt2D(this.x+x.x,this.y+x.y);
+                  }
+                  return new Pt2D(this.x+x,this.y+y);
+              }
+              minus(x,y=undefined){
+                  if (y === undefined){
+                      return new Pt2D(this.x-x.x,this.y-x.y);
+                  }
+                  return new Pt2D(this.x-x,this.y-y);
+              }
+              times(x,y=undefined){
+                  if (y === undefined){
+                      if (typeof x === "object"){
+                          return new Pt2D(this.x*x.x,this.y*x.y);
+                      }
+                      return new Pt2D(this.x*x,this.y*x);
+                  }
+                  return new Pt2D(this.x*x,this.y*y);
+              }
+              div(x,y=undefined){
+                  if (y === undefined){
+                      if (typeof x === "object"){
+                          return new Pt2D(this.x/x.x,this.y/x.y);
+                      }
+                      return new Pt2D(this.x/x,this.y/x);
+                  }
+                  return new Pt2D(this.x/x,this.y/y);
+              }
+              dot(x=undefined,y=undefined){
+                  if (x === undefined){
+                      return this.x*this.x+this.y*this.y;
+                  }
+                  if (y === undefined){
+                      return this.x*x.x+this.y*x.y;
+                  }
+                  return this.x*x+this.y*y;
+              }
+              mag(){
+                  return Math.hypot(this.x,this.y);
+              }
+              pow(x,y=undefined){
+                  return this.log().times(x,y).exp();
+              }
+              cmult(x,y=undefined){
+                  if (y === undefined){
+                      y = x.y; x = x.x;
+                  }
+                  return new Pt2D(this.x*x-this.y*y,this.x*y+this.y*x);
+              }
+              log(){
+                  return new Pt2D(Math.log(this.mag()),Math.atan2(this.y,this.x));
+              }
+              exp(){
+                  let m = Math.exp(this.x);
+                  return new Pt2D(Math.cos(this.y)*m,Math.sin(this.y)*m);
+              }
+          }
+          
+          function consolidated(trl){
+              let r = new Affine2D();
+              for (let t of trl){
+                  r.timesEq(t.matrix);
+              }
+              return r;
+          }
+          function transformDifference(a,b=elem){
+              let p = treePath(a,b);
+              let r = new Affine2D();
+              for (let n of p.up){
+                  r.timesEq(consolidated(n.transform.baseVal));
+              }
+              r = r.invert();
+              for (let n of p.down){
+                  r.timesEq(consolidated(n.transform.baseVal));
+              }
+              return r;
+          }
+          
+          class BlockSlot{
+              distance(block){
+                  return Infinity;
+              }
+              attach(block){
+                  this.v = block;
+              }
+              detach(){
+                  this.v = undefined;
+              }
+          }
+          class ThenSlot extends BlockSlot{
+              constructor(p,x,y){
+                  super();
+                  this.block = p;
+                  this.x = x;
+                  this.y = y;
+              }
+              distance(b){
+                  let m = this.block.worldMatrix;
+                  let a = m.apply(new Pt2D(this.x,this.y));
+                  return a.minus(b.wxy).mag();
+              }
+              attach(b){
+                  b._x = this.x;
+                  b.y = this.y;
+                  if (this.v !== undefined){
+                      this.detach();
+                  }
+                  this.v = b;
+                  //if (b.parent !== undefined){   «- now a precondition
+                  //    b.parent.detach();
+                  //}
+                  b.parent = this;
+                  b.node.remove();
+                  this.block.node.appendChild(b.node);
+              }
+              detach(){
+
+                  //this.v.node.remove();
+                  elem.appendChild(this.v.node);
+                  
+                  this.v.parent = undefined;
+                  this.v = undefined;
+              }
+
+          }
+          class Block{
+              constructor(color="rgb(128,128,128)",x=10,y=10){
+                  this.placed = false;
+                  this._x = x;
+                  this._y = y;
+                  this.node = makeBlockSVG("none",color);
+                  this.parent = undefined;
+                  this.slots = [new ThenSlot(this,0,16+3*2)];
+                  this.stage = undefined;
+              }
+              _pos(){
+                  let trs = this.node.transform.baseVal;
+                  if (trs.length === 0 || trs.getItem(0).type !== SVGTransform.SVG_TRANSFORM_TRANSLATE){
+                      let t = svg.createSVGTransform();
+                      t.setTranslate(0,0);
+                      this.node.transform.baseVal.insertItemBefore(t,0);
+                  }
+                  trs.getItem(0).setTranslate(this._x,this._y);
+              }
+              get x(){
+                  return this._x;
+              }
+              get y(){
+                  return this._y;
+              }
+              set x(v){
+                  this._x = v;
+                  this._pos();
+              }
+              set y(v){
+                  this._y = v;
+                  this._pos();
+              }
+              get wxy(){
+                  let m = this.worldMatrix;
+                  return new Pt2D(m.e,m.f);
+              }
+              get worldMatrix(){
+                  return transformDifference(this.stage,this.node);
+              }
+              ondrag(evt){
+                  return;
+              }
+              onpick(evt){
+                  this.placed = false;
+                  this.parent = undefined;
+                  return;
+              }
+              onplace(evt){
+                  this.placed = true;
+                  return;
+              }
+              addToSvg(s=elem){
+                  this.node.addEventListener('mousedown',((e)=>{
+                      if (selectedBlock === undefined){
+                          selectedBlock = this;
+                          let m = this.worldMatrix;
+                          //m.invert();
+                          this._x = m.e;
+                          this.y = m.f;
+                          //debugger;
+                          s.appendChild(this.node);
+                          this.onpick(e);
+                      }
+                  }).bind(this));
+                  this.placed = true;
+                  s.appendChild(this.node);
+                  this.stage = s;
+                  stagedBlocks.push(this);
+              }
+          }
+
+
+
+
+
+          
+          function findDestination(block){
+              if (highlightedDestination !== undefined){
+                  if (highlightedDestination.distance(block) > 8){
+                      highlightedDestination = undefined;
+                  }else{
+                      return
+                  }
+              }
+              for (let b of stagedBlocks){
+                  if (b.placed){
+                      for (let c of b.slots){
+                          if (c.distance(block) < 4){
+                              highlightedDestination = c;
+                              return;
+                          }
+                      }
+                  }
+              }
+          }
+          let drag = (evt)=>{
+              if (selectedBlock===undefined) return;
+              selectedBlock._x += evt.movementX;
+              selectedBlock.y += evt.movementY;
+              selectedBlock.ondrag(evt);
+              findDestination(selectedBlock);
+          };
+          //`console.log(elem);
+          elem.addEventListener('mousemove',drag);
+          elem.addEventListener('mouseup',(evt)=>{
+              if (selectedBlock !== undefined){
+                  //selected._x = evt.offsetX;
+                  //selected.y = evt.offsetY;
+                  if (highlightedDestination !== undefined){
+                      highlightedDestination.attach(selectedBlock);
+                      highlightedDestination = undefined;
+                  }
+                  selectedBlock.onplace(evt);
+                  selectedBlock = undefined;
+              }
+          });
+
+
+          (new Block()).addToSvg();
+          (new Block("rgb(192,192,128)")).addToSvg();
+          (new Block("rgb(128,128,192)")).addToSvg();
+          
+      }
     </script>
-    </rect>
+    <g id="">
+      <rect x="4" y="5" width="8" height="10" fill="#007bff">
+        <script type="application/javascript">
+          {
+              let elem = document.currentScript.parentElement;
+              elem.addEventListener('mousedown',(evt)=>{
+                  elem.remove();
+              });
+          }
+        </script>
+      </rect>
+      <script type="application/javascript">
+        let dragging_element=undefined;
+        let dragX = 0;let dragY = 0;
+        let drag = (evt)=>{
+            if (dragging_element===undefined) return;
+            let dx = evt.clientX-dragX;
+            dragX += dx;dragging_element.x+=dx;
+            let dy = evt.clientY-dragY;
+            dragY += dy;dragging_element.y+=dy;
+            //console.log(dx,dy);
+            dragging_element.html.setAttribute("transform","translate("+dragging_element.x+","+dragging_element.y+")");
+        };
+        function startDrag(evt){
+            if (dragging_element !== undefined) return;
+            dragX = evt.clientX;
+            dragY = evt.clientY;
+            dragging_element = this;
+        }
+        function stopDrag(evt){
+            if (dragging_element !== this) return;
+            dragging_element = undefined;
+        }
+        function make_draggable(elem,x=0,y=0){
+            //elem.style
+            let el = {html:elem,x:x,y:y};
+            el.startDrag = startDrag.bind(el);
+            el.stopDrag = stopDrag.bind(el);
+            el.html.addEventListener('mousedown',el.startDrag);
+            el.html.addEventListener('mouseup',el.stopDrag);
+            return el;
+        }
+        {
+            let elem = document.currentScript.parentElement.parentElement;//the svg
+            //`console.log(elem);
+            elem.addEventListener('mousemove',drag);
+            elem.addEventListener('mouseup',(evt)=>{
+                if (dragging_element !== undefined){
+                    dragging_element.stopDrag(evt);
+                }
+            });
+        }
+       </script>
     <g transform="translate(100,100)">
       <path stroke="none" fill="rgb(192,96,96)" d="
            M -3,0
@@ -34,7 +486,7 @@
            h 8
            c 4,0 2,4 6,4
 
-           h 54
+           h 154
 
            a 3,3,0 0,1 3,3
            
@@ -48,7 +500,59 @@
            H 0
            a 3,3,0 0,1 -3,-3
            z
-                                                   "/>
+           "/>
+      <path stroke="none" fill="rgb(128,64,64)"
+            d="M 32,1
+               h 8
+               a 7,7,0 0,1 0,14
+               h -8
+               a 7,7,0 0,1 0,-14
+               "/>
+      <path stroke="none" fill="rgb(128,64,64)"
+            d="M 56,1
+               h 8
+               l 7,7 -7,7
+               h -8
+               l -7,-7 7,-7
+               "/>
+
+      <path stroke="none" fill="rgb(128,64,64)"
+            d="M 73,1
+               h 8
+               v 14
+               h -8
+               v -14
+               "/>
+      <script type="application/javascript">
+        {
+            let elem = document.currentScript.parentElement;
+            let dragX = 0;
+            let dragY = 0;
+            let dragging = false;
+            let x = 100;
+            let y = 100;
+            elem.addEventListener('mousedown',(evt)=>{
+                dragX = evt.clientX;
+                dragY = evt.clientY;
+                dragging = true;
+            });
+            elem.addEventListener('mouseup',(evt)=>{
+                dragX = evt.clientX;
+                dragY = evt.clientY;
+                dragging = false;
+            });
+            let move = (evt)=>{
+                if (!dragging) return;
+                let d = evt.clientX-dragX;
+                dragX += d;x+=d;
+                d = evt.clientY-dragY;
+                dragY += d;y+=d;
+                elem.setAttribute("transform","translate("+x+","+y+")");
+            };
+            elem.addEventListener('mouseout',move);
+            elem.addEventListener('mousemove',move);
+        }
+      </script>                                                   
     </g>
     <g transform="translate(100,200)">
       <path stroke="none" fill="rgb(96,192,96)" d="
@@ -75,7 +579,13 @@
            H 0
            a 3,3,0 0,1 -3,-3
            z
-                                                   "/>
+           "/>
+      <script type="application/javascript">
+        {
+            let elem = document.currentScript.parentElement;
+            make_draggable(elem,100,200);
+        }
+      </script>
     </g>
     <g transform="translate(100,300)">
       <path stroke="none" fill="rgb(96,96,192)" d="

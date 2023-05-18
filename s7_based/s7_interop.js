@@ -55,6 +55,13 @@ if (Module.s7_interop === undefined){
 	define_variable_with_documentation : Module.cwrap("s7_define_variable_with_documentation","ptr",["ptr","string","ptr","string"]),
 	define : Module.cwrap("s7_define","ptr",["ptr","ptr","ptr","ptr"]),
 	closure_let : Module.cwrap("s7_closure_let","ptr",["ptr","ptr"]),
+
+	error : Module.cwrap("s7_error","ptr",["ptr","ptr","ptr"]),
+
+	method : Module.cwrap("s7_method","ptr",["ptr","ptr","ptr"]),
+
+
+
     }
     let clear_stdout_stderr = Module.cwrap("clear_stdout_stderr","none",[]);
     let eval_string = Module.cwrap("eval_string", "string", ["string"]);
@@ -145,7 +152,24 @@ if (Module.s7_interop === undefined){
 	else if (t === "symbol?"){
 	    return eval(symbol_name(obj));
 	}
-	throw new Error("unknown function "+repr(sc,obj));
+	else if (t === "js-ref?"){
+	    let f = lookupJsObject(sc,obj);
+	    function wrapped(...a){
+		let r;
+		try{
+		    r = f.apply(this,a);
+		}catch (error){
+		    s7.error(sc,s7.make_symbol(sc,"js-err-"+error.name),
+			     to_sc(sc,{car:error,cdr:null}));
+		    return 0;//to_sc(sc,error);
+		}
+		return to_sc(sc,r);
+	    }
+	    //wrapped.name = "to_sc("+f.name+")";
+	    return wrapped;
+	}
+	
+	throw new Error("unknown function "+repr(sc,obj)+" type "+t);
     }
     function list(sc,obj){
 	let r = [];
@@ -280,12 +304,26 @@ if (Module.s7_interop === undefined){
 	    return repr(this.sc,this.addr);
 	}
     }
+    function func_attrs(sc,obj){
+        //The offsets here were determined experimentally, so they are possibly unstable
+        return {args:Module.HEAPU32[obj/4+2],body:Module.HEAPU32[obj/4+3],env:Module.HEAPU32[obj/4+4],setter:Module.HEAPU32[obj/4+5],arity:Module.HEAPU32[obj/4+6]};
+    }
+    function funcrepr(sc,obj){
+        //The offsets here were determined experimentally, so they are possibly unstable
+        const args = repr(sc,Module.HEAPU32[obj/4+2]);
+        const body = repr(sc,Module.HEAPU32[obj/4+3]);
+        const env = repr(sc,Module.HEAPU32[obj/4+4]);
+        const setter = repr(sc,Module.HEAPU32[obj/4+5]);
+        const arity = Module.HEAPU32[obj/4+5];
+        return `(lambda ${args} ${body.slice(1)}`;
+        
+    }
     function schemeFunc(sc,obj){
 	let f = (s7objects[sc] && s7objects[sc][obj] && s7objects[sc][obj].deref());
 	if (f){
 	    return f;
 	}
-	let e = new Error();
+	//let e = new Error();
 	f = function (...args){
 	    let alist = null;
 	    for (let i = args.length-1 ;i >= 0; i--){
@@ -300,15 +338,42 @@ if (Module.s7_interop === undefined){
 	    //s7.eval_with_location(sc, s7.cons(s7.make_symbol(s7, "define") ,s7.cons(s7.make_symbol(s7, "this"),s7.cons(to_sc(sc,this),s7.nil(sc)))),
 	    //s7.nil(sc),		  
 	    //s7.symbol_set_value(s7, s7.make_symbol(s7, "this"), to_sc(sc,this))
+	    let e = new Error();
+	    let file = "unknown";
+	    let line = 0;
+	    if (e.stack){
+		let s = e.stack;
+		let caller = s.split("\n")[1];
+		file = ""+caller;
+	    }
 	    
-	    let r = s7.call_with_location(sc,obj,to_sc(sc,alist),"javascript", "run", 0);
+	    let r = s7.call_with_location(sc,obj,to_sc(sc,alist),"called from javascript", file, line);
 	    log_outputs_throw(e,sc,r);
 	    return to_js(sc,r);
 	}
 	f.sc = sc;
 	f.addr = obj;
 	f.loc = protectS7Object(f,sc,obj);
-	f.error = e;
+        Object.defineProperty(f, 'args', {
+            get: function() { return to_js(this.sc,Module.HEAPU32[this.addr/4+2]);}
+        });
+        Object.defineProperty(f, 'body', {
+            get: function() { return to_js(this.sc,Module.HEAPU32[this.addr/4+3]);}
+        });
+        Object.defineProperty(f, 'env', {
+            get: function() { return to_js(this.sc,Module.HEAPU32[this.addr/4+4]);}
+        });
+        Object.defineProperty(f, 'setter', {
+            get: function() { return to_js(this.sc,Module.HEAPU32[this.addr/4+5]);}
+        });
+        Object.defineProperty(f, 'arity', {
+            get: function() { return Module.HEAPU32[this.addr/4+6];}
+        });        
+        f.toString = ()=>{
+            return `scheme function ${f.args} ${f.body} ${f.env} ${f.setter}`;
+            return `scheme function [@${f.sc}:${f.addr}] ${funcrepr(f.sc,f.addr)}`;
+        }
+	//f.error = e;
 	return f;
     }
     function to_js(sc, obj){
@@ -344,6 +409,7 @@ if (Module.s7_interop === undefined){
 	    return schemeFunc(sc,obj);
 	case "js-ref?":
 	    return lookupJsObject(sc,obj);
+	case "let?": //probably the most object-like scheme thing
 	case "vector?":
 	case "hash-table?":
 	case "character?":
@@ -432,11 +498,49 @@ if (Module.s7_interop === undefined){
 		seen.set(obj,r);return r; 
 	    }
 	case "function":
-	    let i = js_functions.length;
-	    js_functions.push(obj);
-	    let f = "(lambda x (apply call-js-p (cons \"Module.s7_interop.js_functions["+i+"]\" x)))";
-	    r = evs_p(f);
-	    seen.set(obj,r);return r; 
+	    //let i = js_functions.length;
+	    //js_functions.push(obj);
+
+	    //let f = "(lambda x (apply call-js-p (cons func x)))";
+	    
+	    r = s7.make_js_ref(sc,s7.nil(sc));
+	    registerJsObject(sc,r,obj);
+	    r = s7.eval_with_location(sc,
+				      s7.cons(sc,
+					      s7.make_symbol(sc,"lambda"),
+					      s7.cons(sc,
+						      s7.make_symbol(sc,"x"),
+						      s7.cons(sc,
+							      s7.cons(sc,
+								      s7.make_symbol(sc,"apply"),
+								      s7.cons(sc,
+									      s7.make_symbol(sc,"call-js-p"),
+									      s7.cons(sc,
+										      s7.cons(sc,
+											      s7.make_symbol(sc,"cons"),
+											      s7.cons(sc,
+												      r,
+												      s7.cons(sc,
+													      s7.make_symbol(sc,"x"),
+													      s7.nil(sc))
+												     )
+											     ),
+										      s7.nil(sc)
+										     )
+									     )
+								     ),
+							      s7.nil(sc)
+							     )
+						     )
+					     ),
+				      s7.nil(sc),
+				      "to_sc","s7_interop.js",0);
+	    
+	    seen.set(obj,r);
+	    return r;
+	    
+	    //r = evs_p(f);
+	    //seen.set(obj,r);return r; 
 	}
 
 	return seen.get(obj);
@@ -456,7 +560,7 @@ if (Module.s7_interop === undefined){
 	s7,
 	
 	string, symbol_name,
-	repr,
+	repr,funcrepr,
 	type_of,
 	fn,
 	list,
@@ -487,5 +591,18 @@ if (Module.s7_interop === undefined){
 
 	jsObjects, lookupJsObject,registerJsObject,freeJsObject,
     };
+
+    Module.loadRemote = async function loadRemote(url,wrap=true){
+	let response = await fetch(url);
+	if (response.ok && response.status === 200){
+	    let prog = await response.text();
+	    if (wrap){
+		prog = "(begin \n" + prog + "\n)";
+	    }
+	    return Module.s7_interop.eval_s(prog);
+	}else{
+	    console.warn("loadRemote bad response",url,response);
+	}
+    }
 }
 
