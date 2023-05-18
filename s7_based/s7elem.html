@@ -16,9 +16,10 @@
   </head>
   <body>
     <s7-script src="svg.scm" style="display:none"> (demo)  1 </s7-script>
-    <s7-macro src="svg.scm" style="display:none"> (write "first") </s7-macro>
-    <s7-macro src="svg.scm" style="display:none"> (write "second") </s7-macro>
-    <s7-macro src="svg.scm" style="display:none"> (write "third") </s7-macro>
-    <s7-macro src="svg.scm" style="display:none" async> (write "async") </s7-macro>
+    <s7-macro> (write "first") </s7-macro>
+    <s7-macro> (write "second") </s7-macro>
+    <s7-macro> (write "third") </s7-macro>
+    <s7-macro async> (write "async 1") </s7-macro>
+    <s7-macro async> (write "async 2") </s7-macro>
   </body>
 </html>
