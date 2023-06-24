@@ -19,3 +19,5 @@ import { parse, prettyPrintThing, safePrintThing, thingify } from "./s_parse";
 
 import * as Module from "./s7/main.js";
 import "./s7_interop.js";
+import "./s7_interop_formatter.js";
+import "./s7_html_tags.js";

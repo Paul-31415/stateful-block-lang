@@ -22,19 +22,19 @@
             const self = this.self;
             async function run(){
                 const Module = await p;
-                let prog = self.innerHTML;
+                let prog = self.innerText;
                 if (self.attributes.src?.nodeValue !== undefined){
 	            let response = await fetch(self.attributes.src.nodeValue);
 	            if (response.ok && response.status === 200){
 	                prog = (await response.text()) + prog;
-	                if (!(self.attributes['no-wrap'])){
-		            prog = "(begin \n" + prog + "\n)";
-	                }
 	            }else{
 	                console.error(response);
                         return;
 	            }
                 }
+                if (!(self.attributes['no-wrap'])){
+		    prog = "(begin \n" + prog + "\n)";
+	        }
                 try{
                     const res = Module.s7_interop.evs(prog);
                     this.done = true;

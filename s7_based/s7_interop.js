@@ -90,7 +90,7 @@ if (Module.s7_interop === undefined){
 	let err = get_err();
 	clear_stdout_stderr();
 	if (out) console.log(out);
-	if (err) console.warn(err);
+	if (err) console.error(err);
     }
     function log_outputs_throw(e,sc,o){
 	let out = get_out();
@@ -194,6 +194,7 @@ if (Module.s7_interop === undefined){
 	    this.n = n;
 	    this.d = d;
 	}
+        get t(){return "rational?";}
 	toString(){
 	    return this.n+"/"+this.d;
 	}
@@ -207,6 +208,7 @@ if (Module.s7_interop === undefined){
 	    this.r = r;
 	    this.i = i;
 	}
+        get t(){return "complex?";}
 	toString(){
 	    return this.r+"+"+this.i+"i";
 	}
@@ -268,6 +270,7 @@ if (Module.s7_interop === undefined){
 	    this.addr = obj;
 	    this.protect();
 	}
+        get t(){return "pair?";}
 	protect(){
 	    this.loc = protectS7Object(this,this.sc,this.addr);
 	}
@@ -368,9 +371,73 @@ if (Module.s7_interop === undefined){
         });
         Object.defineProperty(f, 'arity', {
             get: function() { return Module.HEAPU32[this.addr/4+6];}
-        });        
+        });
+        Object.defineProperty(f, 't', {
+            get: function() {return "procedure?";}
+        });
         f.toString = ()=>{
             return `scheme function ${f.args} ${f.body} ${f.env} ${f.setter}`;
+            return `scheme function [@${f.sc}:${f.addr}] ${funcrepr(f.sc,f.addr)}`;
+        }
+	//f.error = e;
+	return f;
+    }
+    function schemeCont(sc,obj){
+	let f = (s7objects[sc] && s7objects[sc][obj] && s7objects[sc][obj].deref());
+	if (f){
+	    return f;
+	}
+	//let e = new Error();
+	f = function (...args){
+	    let alist = null;
+	    for (let i = args.length-1 ;i >= 0; i--){
+		alist = {car:args[i],cdr:alist};
+	    }
+	    //console.log(alist);
+	    
+	    //this encloser
+	    s7.define(sc,s7.closure_let(sc,obj),s7.make_symbol(sc,"this"),to_sc(sc,this));
+	    
+	    //s7.symbol_set_value(s7, s7.make_symbol(s7, "this"), to_sc(sc,this));
+	    //s7.eval_with_location(sc, s7.cons(s7.make_symbol(s7, "define") ,s7.cons(s7.make_symbol(s7, "this"),s7.cons(to_sc(sc,this),s7.nil(sc)))),
+	    //s7.nil(sc),		  
+	    //s7.symbol_set_value(s7, s7.make_symbol(s7, "this"), to_sc(sc,this))
+	    let e = new Error();
+	    let file = "unknown";
+	    let line = 0;
+	    if (e.stack){
+		let s = e.stack;
+		let caller = s.split("\n")[1];
+		file = ""+caller;
+	    }
+	    
+	    let r = s7.call_with_location(sc,obj,to_sc(sc,alist),"called from javascript", file, line);
+	    log_outputs_throw(e,sc,r);
+	    return to_js(sc,r);
+	}
+	f.sc = sc;
+	f.addr = obj;
+	f.loc = protectS7Object(f,sc,obj);
+        /*Object.defineProperty(f, 'args', {
+            get: function() { return to_js(this.sc,Module.HEAPU32[this.addr/4+2]);}
+        });
+        Object.defineProperty(f, 'body', {
+            get: function() { return to_js(this.sc,Module.HEAPU32[this.addr/4+3]);}
+        });
+        Object.defineProperty(f, 'env', {
+            get: function() { return to_js(this.sc,Module.HEAPU32[this.addr/4+4]);}
+        });
+        Object.defineProperty(f, 'setter', {
+            get: function() { return to_js(this.sc,Module.HEAPU32[this.addr/4+5]);}
+        });
+        Object.defineProperty(f, 'arity', {
+            get: function() { return Module.HEAPU32[this.addr/4+6];}
+        });*/
+        Object.defineProperty(f, 't', {
+            get: function() {return "continuation?";}
+        });
+        f.toString = ()=>{
+            return `scheme continuation ${repr(f.sc,f.addr)}`;
             return `scheme function [@${f.sc}:${f.addr}] ${funcrepr(f.sc,f.addr)}`;
         }
 	//f.error = e;
@@ -407,6 +474,8 @@ if (Module.s7_interop === undefined){
 	    return pair(sc,obj);
 	case "procedure?":
 	    return schemeFunc(sc,obj);
+	case "continuation?":
+	    return schemeCont(sc,obj);            
 	case "js-ref?":
 	    return lookupJsObject(sc,obj);
 	case "let?": //probably the most object-like scheme thing
